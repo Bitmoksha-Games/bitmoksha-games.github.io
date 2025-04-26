@@ -1,8 +1,252 @@
 <html>
-  <head>
-    <title>BitMoksha Games</title>
-  </head>
-  <body>
-    <h1>Coming Soon...</h1>
-  </body>
+    <head>
+        <title>BitMoksha Games</title>
+        <script language="javascript">
+            var golWorld = []
+            var golWorld2 = []
+            var canvasW;
+            var canvasH;
+            var cellW = 1;
+            var cellH = 1;
+            var w;
+            var h;
+            var canvas;
+            var ctx;
+            var mousePos;
+            var bbImageData;
+            var bbData;
+            var targetFps;
+            var targetFrameTime;
+            var mouseButtonPressed;
+            var bgImageData;
+            var frameCounter = 0;
+            var timeCounter = 0;
+            var init_pending = false;
+            var newCellSize = 0;
+            var dropTimer = 1000;
+            var lastDropTimeDiff = 0;
+
+            async function toBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    console.log(file);
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                });
+            }
+
+            async function load_bg() {
+                const base64 = await toBase64(file_input.files[0]);
+                const src = base64;
+                var img = new Image();
+                img.onload = function () {
+                    console.log(this)
+                    var canvas = document.getElementById("jsRipple2");
+                    var ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0);
+                    bgImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    console.log("Loaded BG!");
+                }
+                img.src = src;
+            }
+
+            function init() {
+                canvas = document.getElementById("jsRipple");
+                ctx = canvas.getContext("2d");
+
+                canvasW = canvas.width;
+                canvasH = canvas.height;
+                w = canvasW / cellW;
+                h = canvasH / cellH;
+                golWorld = []
+                golWorld2 = []
+                for(let i = 0; i < w * h; ++i) {
+                    golWorld.push(0);
+                    golWorld2.push(0);
+                }
+                
+                bbImageData = ctx.createImageData(canvas.width, canvas.height);
+                bbData = bbImageData.data;
+                targetFps = 30;
+                targetFrameTime = 1000 / targetFps;
+                mouseButtonPressed = false;
+                setTimeout(() => { 
+                    updateLoop();
+                }, 100);
+            }
+
+            function updateLoop() {
+                let startTime = new Date();
+                update();
+                paintCanvas();
+                updateWorlds();
+                let timeDiff = new Date() - startTime;
+                // console.log("FrameTime: " + timeDiff);
+                timeCounter += timeDiff;
+                frameCounter += 1;
+                let sleepTime = targetFrameTime - timeDiff;
+                if(sleepTime < 0)
+                    sleepTime = 5;
+                lastDropTimeDiff += timeDiff + sleepTime;
+                if(timeCounter >= 1000) {
+                    document.getElementById("fpsDisplay").innerText = "Fps: " 
+                        + frameCounter + "(" + (timeCounter / frameCounter).toFixed(2) + "ms), Sleep: " 
+                        + sleepTime.toFixed(2) + "ms";
+                    frameCounter = 0;
+                    timeCounter = 0;
+                }
+                if(init_pending) {
+                    cellW = newCellSize;
+                    cellH = newCellSize;
+                    init();
+                    init_pending = false;
+                }
+                setTimeout(() => { 
+                    updateLoop();
+                }, sleepTime);
+            }
+
+            function update() {
+                let cellCnt = w * h;
+                // Random droplets
+                if(lastDropTimeDiff >= dropTimer)
+                {
+                    lastDropTimeDiff = 0;
+                    let gridX = Math.floor(Math.random() * w)
+                    let gridY = Math.floor(Math.random() * h)
+                    golWorld[gridY * w + gridX] = 1;
+                }
+                let damping_value = 0.995;
+                for(let x = 1; x < w - 1; ++x) {
+                    for(let y = 1; y < h - 1; ++y) {
+                        golWorld2[y * w + x] = (((golWorld[y * w + x - 1] 
+                                                + golWorld[y * w + x + 1]
+                                                + golWorld[(y + 1) * w + x]
+                                                + golWorld[(y - 1) * w + x]
+                                                + golWorld[(y - 1) * w + x - 1]
+                                                + golWorld[(y - 1) * w + x + 1]
+                                                + golWorld[(y + 1) * w + x - 1]
+                                                + golWorld[(y + 1) * w + x + 1]
+                                                ) / 4) - golWorld2[y * w + x]) * damping_value;
+                    }
+                }
+            }
+
+            function paintCell(x, y, cw, ch, rgba, data) {
+                let dx = x * cw;
+                let dy = y * ch;
+                for(let cx = dx; cx < dx + cw; ++cx) {
+                    for(let cy = dy; cy < dy + ch; ++cy) {
+                        let idx = (cy * canvasW + cx) * 4;
+                        data[idx] = rgba[0];
+                        data[idx + 1] = rgba[1];
+                        data[idx + 2] = rgba[2];
+                        data[idx + 3] = rgba[3];
+                    }
+                }
+            }
+
+            function paintCellOverlay(x, y, cw, ch, val, rgba, data, bgData) {
+                let dx = x * cw;
+                let dy = y * ch;
+                for(let cx = dx; cx < dx + cw; ++cx) {
+                    for(let cy = dy; cy < dy + ch; ++cy) {
+                        let idx = (cy * canvasW + cx) * 4;
+                        data[idx] = (1.0 - val) * rgba[0] + val * bgData[idx];
+                        data[idx + 1] = (1.0 - val) * rgba[1] + val * bgData[idx + 1];
+                        data[idx + 2] = (1.0 - val) * rgba[2] + val * bgData[idx + 2];
+                        data[idx + 3] = (1.0 - val) * rgba[3] + val * bgData[idx + 3];
+                    }
+                }
+            }
+
+            function paintCanvas() {
+
+                if(bgImageData) {
+                    let maxColour = [255, 255, 255, 255];
+                    for(let x = 0; x < w; ++x) {
+                        for(let y = 0; y < h; ++y) {
+                            // let val = Math.floor(255 * golWorld[y * w + x]);
+                            let val = Math.max(Math.min(1.0 - golWorld[y * w + x], 1.0), 0.25);
+                            let idx = (y * w + x) * 4;
+                            paintCellOverlay(x, y, cellW, cellH, val, maxColour, bbData, bgImageData.data);
+                        }
+                    }
+                    ctx.putImageData(bbImageData, 0, 0);
+                } else {
+                    let defaultColour = [50, 75, 118];
+                    let maxColour = [100, 149, 237];
+                    for(let x = 0; x < w; ++x) {
+                        for(let y = 0; y < h; ++y) {
+                            // let val = Math.floor(255 * golWorld[y * w + x]);
+                            let val = Math.max(Math.min(1.0 - golWorld[y * w + x], 1.0), 0.50);
+                            let idx = (y * w + x) * 4;
+                            let rgba = [
+                                val * defaultColour[0] + (1.0 - val) * maxColour[0], 
+                                val * defaultColour[1] + (1.0 - val) * maxColour[1], 
+                                val * defaultColour[2] + (1.0 - val) * maxColour[2],  // (255 - (val / 2)) / 2;
+                                255
+                            ];
+                            paintCell(x, y, cellW, cellH, rgba, bbData);
+                        }
+                    }
+                    ctx.putImageData(bbImageData, 0, 0);
+                }
+
+            }
+
+            function updateWorlds() {
+                let golWorld3 = golWorld2;
+                golWorld2 = golWorld;
+                golWorld = golWorld3;
+            }
+
+            function onMouseMove(e) {
+                if(mouseButtonPressed) {
+                    mousePos = getMousePos(canvas, e);
+                    if(mousePos) {
+                        let gridX = Math.floor(mousePos.x / cellW);
+                        let gridY = Math.floor(mousePos.y / cellH);
+                        golWorld[gridY * w + gridX] = 1;
+                    }
+                } else {
+                    mousePos = null;
+                }
+            }
+
+            function onMouseDown(e) {
+                mouseButtonPressed = true;
+                onMouseMove(e);
+            }
+
+            function onMouseUp(e) {
+                mouseButtonPressed = false;
+            }
+
+            function getMousePos(canvas, evt) {
+                var rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+
+            function updateCellSize() {
+                newCellSize = Math.pow(2, parseInt(document.getElementById("slider").value));
+                console.log(document.getElementById("slider").value + ", " + newCellSize);
+                init_pending = true;
+            }
+
+        </script>
+    </head>
+    <body onload="init()">
+        <h1>Coming Soon...</h1><br />
+        <p id="fpsDisplay">00</p>
+        Cell Height: <input id="slider" type="range" min="0" max="4" step="1"  value="0" onchange="updateCellSize()"><br />
+        <canvas id="jsRipple" onmouseout="mousePos = undefined;" onmousemove="onMouseMove(event)" onmousedown="onMouseDown(event)" onmouseup="onMouseUp(event)" width="1024" height="512"></canvas>
+        <br /><input type="file" id="file_input" onchange="load_bg()" />
+        <canvas id="jsRipple2" width="1024" height="512" style="visibility: hidden;"></canvas>
+
+    </body>
 </html>
