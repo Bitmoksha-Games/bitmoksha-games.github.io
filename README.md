@@ -1,1 +1,1 @@
-# [Website](https://bitmoksha-games.github.io/)
+# [BitmokshaGames](https://bitmoksha-games.github.io/)
