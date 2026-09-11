@@ -32,7 +32,9 @@
 
   <main id="games" class="container-fluid flex-grow-1 d-flex px-0">
     <div class="row g-0 flex-grow-1 w-100">
-      <section class="col-lg-8 border-end visual-pane" aria-label="Game screenshots">
+      <section class="col-lg-8 border-end visual-pane info-pane" aria-label="Game screenshots">
+        <!-- <div class="list-group list-group-horizontal rounded-0" role="tablist" aria-label="Choose a game" data-game-tabs></div> -->
+        <div class="game-tabs list-group list-group-horizontal rounded-0" role="tablist" aria-label="Choose a game" data-game-tabs></div>
         <div id="screenshots" class="carousel slide h-100" data-bs-interval="false">
           <div class="carousel-inner h-100" data-slides></div>
           <div class="position-absolute top-0 start-0 m-3 badge rounded-pill text-bg-dark"><span data-current>1</span> / <span data-total>1</span></div>
@@ -43,8 +45,6 @@
 
       <section class="col-lg-4 d-flex flex-column info-pane" aria-live="polite">
         <div class="p-4 p-xl-5 my-auto" data-game-info></div>
-        <!-- <div class="list-group list-group-horizontal rounded-0" role="tablist" aria-label="Choose a game" data-game-tabs></div> -->
-        <div class="game-tabs list-group list-group-horizontal rounded-0" role="tablist" aria-label="Choose a game" data-game-tabs></div>
       </section>
     </div>
   </main>

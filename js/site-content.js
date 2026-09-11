@@ -74,7 +74,7 @@ window.siteContent = {
       description: "Find the mines.",
       tags: ["Strategy", "Puzzle", "Mobile first"],
       links: [
-        // { label: "Google Play", url: "https://www.google.com/" },
+        { label: "Google Play", url: "https://play.google.com/store/apps/details?id=com.bitmoksha.minefieldmayhempvp" },
         // { label: "App Store", url: "https://www.apple.com" }
       ],
       screenshots: [
